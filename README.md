@@ -7,6 +7,17 @@ The API follows a layered architecture:
 **Controller → Service → Repository → Database**
 
 ---
+Running instruction:
+
+git clone https://github.com/Sowhardo12/media-vault-api.git
+cd media-vault-api
+npm install
+docker-compose up -d
+docker ps   : check if container is up, make sure docker is installed (linux) or Docker Desktop is installed (Windows)
+npm run start:dev  
+
+server will start on port 5004
+
 
 ## Example Flow
 
