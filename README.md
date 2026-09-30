@@ -1,98 +1,138 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Media Vault API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## Architecture
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+The API follows a layered architecture:
 
-## Description
+**Controller → Service → Repository → Database**
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+---
 
-## Project setup
+## Example Flow
+
+Example request:
 
 ```bash
-$ npm install
+curl -X POST http://localhost:5004/authors \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Alice Walker", "email": "alice@example.com"}'
 ```
 
-## Compile and run the project
+### 1. Controller
 
-```bash
-# development
-$ npm run start
+The request first reaches `AuthorController`.
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+```ts
+@Post()
+create(@Body() dto: CreateAuthorDto) {
+  return this.authorService.create(dto);
+}
 ```
 
-## Run tests
+The JSON request body is mapped to the properties of the `CreateAuthorDto` instance through:
 
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+```ts
+@Body() dto: CreateAuthorDto
 ```
 
-## Deployment
+The DTO is then passed to `AuthorService.create()`.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+---
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### 2. Service
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+`AuthorService` implements the `IAuthorService` interface.
+
+The interface defines the methods that `AuthorService` must implement.
+
+```ts
+async create(dto: CreateAuthorDto): Promise<AuthorEntity> {
+  return await this.authorRepository.createAuthor(dto);
+}
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+The service calls the repository to handle database persistence.
 
-## Resources
+---
 
-Check out a few resources that may come in handy when working with NestJS:
+### 3. Repository
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```ts
+async createAuthor(dto: CreateAuthorDto): Promise<AuthorEntity> {
+  const author = this.create(dto);
+  return await this.save(author);
+}
+```
 
-## Support
+Here:
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+* `this.create(dto)` is TypeORM's `Repository.create()` method.
+* It creates an `AuthorEntity` object from the DTO.
+* `this.save(author)` persists the data to the database.
 
-## Stay in touch
+If the entity does not have an existing ID, `save()` creates a new record. If the ID already exists, it updates the existing record.
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Internally, an SQL query like this is executed:
 
-## License
+```sql
+INSERT INTO authors (name, email)
+VALUES ($1, $2)
+RETURNING *;
+```
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+---
+
+### 4. Entity
+
+`AuthorEntity` defines the shape of an author.
+
+---
+
+## Dependency Injection
+
+Instead of directly depending on `AuthorService`, the controller can work with the `IAuthorService` interface.
+
+This allows `AuthorService` to be replaced with something like `MockAuthorService`, which can use an in-memory data store instead of PostgreSQL.
+
+The implementation can be rewired in `AppModule` without changing the controller.
+
+---
+
+# SOLID Principles
+
+## Single Responsibility Principle
+
+Each layer has one main responsibility:
+
+* **AuthorDto:** Changes when API request validation rules change.
+* **AuthorController:** Changes when HTTP routes or payload formats change.
+* **AuthorService:** Changes when business rules around authors change.
+* **AuthorRepository:** Changes when database schema or persistence queries change.
+
+## Open-Closed Principle
+
+If we want to add a new type of media, we can extend the system without modifying some of the major existing code.
+
+## Liskov Substitution Principle
+
+`AuthorService` and `MockAuthorService` can both implement `IAuthorService`.
+
+Therefore, one implementation can be substituted for the other as long as it follows the same contract.
+
+## Interface Segregation Principle
+
+Instead of having one large interface such as `IMedia`, interfaces are separated:
+
+* `IAuthor`
+* `IBook`
+* `IVideo`
+
+This avoids forcing classes to depend on methods they do not need.
+
+## Dependency Inversion
+
+The controller does not need to directly depend on a specific service implementation.
+
+Because the service is wired through an interface, a different implementation can be used without changing the controller.
+
+For example, if we need to replace `AuthorService` with `MockAuthorService` or another implementation, we only need to change the wiring in `AppModule`.
